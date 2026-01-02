@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "data-forge": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/your-path-to/data-forge-mcp",
+        "run",
+        "-m",
+        "src.server"
+      ]
+    }
+  }
+}
