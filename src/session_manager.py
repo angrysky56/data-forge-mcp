@@ -37,6 +37,28 @@ class SessionManager:
         # For now, just keep a reference to be initialized when used to save startup time
         self.scanner = VoidScanner()
 
+    def _to_pandas_safe(self, df: Union[pd.DataFrame, 'pl.DataFrame'], limit: int = 100000, context: str = "operation") -> pd.DataFrame:
+        """
+        Safely converts a DataFrame (Pandas or Polars) to Pandas, sampling if necessary
+        to avoid OOM on large datasets.
+        """
+        if isinstance(df, pd.DataFrame):
+            # Already Pandas. If huge, we technically could sample, but user didn't flag this path.
+            # Let's trust Pandas users know their RAM or just sample if huge anyway?
+            # For consistency with the Polars safety, let's limit it too if requested.
+            if len(df) > limit:
+                print(f"[{context}] Dataset too large ({len(df)} rows). Sampling {limit} rows for safety.")
+                return df.sample(n=limit, random_state=42)
+            return df
+
+        if pl is not None and isinstance(df, pl.DataFrame):
+            if len(df) > limit:
+                print(f"[{context}] Polars Dataset too large ({len(df)} rows). Sampling {limit} rows for safely converting to Pandas.")
+                return df.sample(n=limit, with_replacement=False, seed=42).to_pandas()
+            return df.to_pandas()
+
+        return df # Should be unreachable if types align
+
     def extract_signals(self, dataset_id: str, value_column: str, id_column: Optional[str] = None, sort_column: Optional[str] = None) -> Union[str, Dict[str, Any]]:
         """
         Extracts time-series features using tsfresh.
@@ -48,11 +70,8 @@ class SessionManager:
         """
         df = self.get_dataset(dataset_id)
 
-        if pl is not None and isinstance(df, pl.DataFrame):
-            # tsfresh works with pandas
-            # Converting potentially large polars DF to pandas might be a bottleneck,
-            # but tsfresh is CPU intensive anyway.
-            df = df.to_pandas()
+        # tsfresh works with pandas. Use safe conversion (limit 50k, tsfresh is slow)
+        df = self._to_pandas_safe(df, limit=50000, context="extract_signals")
 
         # Input validation
         if value_column not in df.columns:
@@ -283,9 +302,8 @@ class SessionManager:
         df = self.get_dataset(dataset_id)
 
         # YData Profiling works best with Pandas
-        if pl is not None and isinstance(df, pl.DataFrame):
-            # For MVP, convert to pandas. In production, we'd want to sample large datasets or use native stats.
-            df = df.to_pandas()
+        # Limit to 100k for profiling to ensure responsiveness
+        df = self._to_pandas_safe(df, limit=100000, context="get_dataset_profile")
 
         profile = ProfileReport(df, minimal=True)
         json_data = profile.to_json()
@@ -388,8 +406,8 @@ class SessionManager:
             from shapely.geometry import Point
 
             df = self.get_dataset(dataset_id)
-            if pl is not None and isinstance(df, pl.DataFrame):
-                df = df.to_pandas()
+            # Limit map points to 50k to avoid cluttered map and slow mpl
+            df = self._to_pandas_safe(df, limit=50000, context="generate_map")
 
             if lat_col not in df.columns or lon_col not in df.columns:
                 raise ValueError(f"Columns '{lat_col}' and '{lon_col}' required for mapping.")
@@ -468,8 +486,9 @@ class SessionManager:
             import dtale
 
             df = self.get_dataset(dataset_id)
-            if pl is not None and isinstance(df, pl.DataFrame):
-                df = df.to_pandas()
+            # D-Tale can handle more, but 5GB pandas is risky. Let's cap at 500k for safety?
+            # Or let user decide? For now, standard safe limit.
+            df = self._to_pandas_safe(df, limit=500000, context="start_explorer")
 
             # D-Tale manages its own global state.
             # startup(data_id=...) returns an instance.
@@ -488,9 +507,8 @@ class SessionManager:
         """
         df = self.get_dataset(dataset_id)
 
-        if pl is not None and isinstance(df, pl.DataFrame):
-            # Convert to pandas for plotting
-            df = df.to_pandas()
+        # Plotting millions of points is slow. Limit to 50k.
+        df = self._to_pandas_safe(df, limit=50000, context="generate_chart")
 
         plt.figure(figsize=(10, 6))
 
