@@ -90,13 +90,9 @@ To use Data-Forge with your MCP Client (e.g., Claude Desktop), add the following
         "--directory",
         "/absolute/path/to/data-forge-mcp",
         "run",
-        "python",
         "-m",
         "src.server"
-      ],
-      "env": {
-        "PYTHONPATH": "."
-      }
+      ]
     }
   }
 }
