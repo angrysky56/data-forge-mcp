@@ -45,6 +45,18 @@ def get_dataset_info(dataset_id: str) -> str:
     except Exception as e:
         return f"Error retrieving info: {str(e)}"
 
+@mcp.prompt()
+def data_forge_instructions() -> str:
+    """
+    Returns the System Prompt / SOP for the Data-Forge Agent.
+    Use this to understand how to operate the server's tools effectively.
+    """
+    try:
+        with open("LLM_INSTRUCTIONS.md", "r") as f:
+            return f.read()
+    except Exception:
+        return "Instructions not found. Please refer to README.md."
+
 @mcp.tool()
 def list_active_datasets() -> str:
     """

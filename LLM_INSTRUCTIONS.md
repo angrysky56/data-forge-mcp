@@ -41,6 +41,18 @@ Follow this pipeline for every new data task:
 - **Geospatial**: `generate_map` (requires lat/lon columns).
 - **Result**: Always return the path to the generated image.
 
+### 7. Discovery (The Probe)
+
+- **Semantic Voids**: `scan_semantic_voids`.
+  - Use when asked "What's missing?" or "Find gaps".
+  - Returns a persistence barcode and landmark papers.
+
+### 8. Headless Control (The God Mode)
+
+- **SQL Query**: `run_sql_query`.
+  - Use for **complex questions** requiring Joins, Filtering, or Aggregation.
+  - "Show me top 5 users" -> `SELECT name FROM this ORDER BY spend DESC LIMIT 5`.
+
 ---
 
 ## 🧠 Cognitive Cheat Sheet
@@ -50,6 +62,8 @@ Follow this pipeline for every new data task:
 | **"Analyze this CSV"**        | `load_data` -> `get_dataset_profile` -> `clean_dataset` -> `generate_chart` |
 | **"Interactive exploration"** | `load_data` -> `start_explorer`                                             |
 | **"Map these coordinates"**   | `load_data` -> `generate_map`                                               |
+| **"Find research gaps"**      | `load_data` -> `scan_semantic_voids`                                        |
+| **"Complex filtering/join"**  | `load_data` -> `run_sql_query`                                              |
 | **"Web scraping"**            | `extract_tables` -> `clean_dataset` -> `get_dataset_info`                   |
 
 ---
