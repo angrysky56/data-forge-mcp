@@ -7,6 +7,7 @@ from persim import plot_diagrams
 from sentence_transformers import SentenceTransformer
 import os
 import time
+import sys
 from typing import List, Tuple, Dict, Any, Optional
 
 class VoidScanner:
@@ -21,7 +22,7 @@ class VoidScanner:
     def model(self):
         if self._model is None:
             # Lazy loading to avoid overhead if tool is not used
-            print(f"Loading SentenceTransformer: {self.model_name}...")
+            print(f"Loading SentenceTransformer: {self.model_name}...", file=sys.stderr)
             self._model = SentenceTransformer(self.model_name)
         return self._model
 
@@ -49,7 +50,7 @@ class VoidScanner:
         # 1. Sampling (Volume Control)
         n_samples = len(texts)
         if n_samples > max_points:
-            print(f"Dataset too large for TDA ({n_samples} > {max_points}). Sampling...")
+            print(f"Dataset too large for TDA ({n_samples} > {max_points}). Sampling...", file=sys.stderr)
             indices = np.random.choice(n_samples, max_points, replace=False)
             corpus = [texts[i] for i in indices]
             if titles is not None and len(titles) > 0:
@@ -61,14 +62,14 @@ class VoidScanner:
             corpus_titles = list(titles) if titles is not None and len(titles) > 0 else [f"Item {i}" for i in range(n_samples)]
 
         # 2. Embedding (The Map)
-        print("Embedding corpus...")
+        print("Embedding corpus...", file=sys.stderr)
         if ctx:
             ctx.info("Generating embeddings (SentenceTransformer)...")
         embeddings = self.model.encode(corpus)
 
         # 3. Manifold Projection (UMAP)
         # Reduce to 3D for checking structure and TDA processing
-        print("Projecting Manifold (UMAP)...")
+        print("Projecting Manifold (UMAP)...", file=sys.stderr)
         if ctx:
             ctx.info("Projecting Manifold (UMAP) to 3D...")
         # n_jobs=1 to suppress warnings and ensure stability
@@ -76,7 +77,7 @@ class VoidScanner:
         input_data = reducer.fit_transform(embeddings) # (N, 3) point cloud
 
         # 4. TDA (The Scan)
-        print("Computing Persistent Homology...")
+        print("Computing Persistent Homology...", file=sys.stderr)
         if ctx:
             ctx.info("Computing Persistent Homology (Vietoris-Rips Filtration)...")
         # maxdim=1 computes H0 (clusters) and H1 (loops/voids)

@@ -1,3 +1,14 @@
+import sys
+import faulthandler
+import matplotlib
+import os
+
+# Enable crash handler to dump tracebacks on segfaults/crashes
+faulthandler.enable(file=sys.stderr, all_threads=True)
+
+# Force headless mode to prevent GUI-related crashes in server environment
+matplotlib.use('Agg')
+
 from mcp.server.fastmcp import FastMCP, Context
 from src.session_manager import SessionManager
 from typing import Literal, Optional, Dict, List, Any, Union
@@ -145,14 +156,28 @@ def generate_chart(dataset_id: str,
     except Exception as e:
         return f"Error generating chart: {str(e)}"
 
-@mcp.tool()
-def scan_semantic_voids(dataset_id: str, text_column: str, ctx: Optional[Context] = None) -> str:
-    """
-    Performs Topological Data Analysis to find "semantic voids" or gaps in the dataset's text column.
-    Useful for identifying missing research topics, unaddressed customer complaints, or concept holes.
-    Generates a persistence barcode and 3D manifold plot.
-    """
-    return session_manager.scan_voids(dataset_id, text_column, ctx)
+# Context Toggle Configuration
+DISABLE_CONTEXT = os.getenv("DATA_FORGE_NO_CONTEXT", "0").lower() in ("1", "true", "yes")
+
+if DISABLE_CONTEXT:
+    @mcp.tool()
+    def scan_semantic_voids(dataset_id: str, text_column: str) -> str:
+        """
+        Performs Topological Data Analysis to find "semantic voids" or gaps in the dataset's text column.
+        Useful for identifying missing research topics, unaddressed customer complaints, or concept holes.
+        Generates a persistence barcode and 3D manifold plot.
+        """
+        # Context disabled by configuration
+        return session_manager.scan_voids(dataset_id, text_column, ctx=None)
+else:
+    @mcp.tool()
+    def scan_semantic_voids(dataset_id: str, text_column: str, ctx: Optional[Context] = None) -> str:
+        """
+        Performs Topological Data Analysis to find "semantic voids" or gaps in the dataset's text column.
+        Useful for identifying missing research topics, unaddressed customer complaints, or concept holes.
+        Generates a persistence barcode and 3D manifold plot.
+        """
+        return session_manager.scan_voids(dataset_id, text_column, ctx)
 
 @mcp.tool()
 def run_sql_query(query: str, dataset_id: Optional[str] = None) -> str:
@@ -263,4 +288,11 @@ def start_explorer(dataset_id: str) -> str:
         return f"Error starting explorer: {str(e)}"
 
 if __name__ == "__main__":
-    mcp.run()
+    try:
+        # sys.stderr.write("Starting Data-Forge MCP Server...\n")
+        mcp.run()
+    except Exception as e:
+        sys.stderr.write(f"Fatal error in main loop: {e}\n")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        sys.exit(1)

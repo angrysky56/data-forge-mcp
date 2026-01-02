@@ -8,7 +8,13 @@
         "run",
         "-m",
         "src.server"
-      ]
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1",
+        "LOG_LEVEL": "WARNING",
+        "NUMBA_DISABLE_CUDA": "1",
+        "NUMBA_ENABLE_CUDASIM": "1"
+      }
     }
   }
 }

@@ -2,6 +2,7 @@ import uuid
 import os
 import time
 import json
+import sys
 from datetime import datetime
 from src.discovery import VoidScanner
 from typing import Dict, Any, List, Optional, Union
@@ -48,13 +49,13 @@ class SessionManager:
             # Let's trust Pandas users know their RAM or just sample if huge anyway?
             # For consistency with the Polars safety, let's limit it too if requested.
             if len(df) > limit:
-                print(f"[{context}] Dataset too large ({len(df)} rows). Sampling {limit} rows for safety.")
+                print(f"[{context}] Dataset too large ({len(df)} rows). Sampling {limit} rows for safety.", file=sys.stderr)
                 return df.sample(n=limit, random_state=42)
             return df
 
         if pl is not None and isinstance(df, pl.DataFrame):
             if len(df) > limit:
-                print(f"[{context}] Polars Dataset too large ({len(df)} rows). Sampling {limit} rows for safely converting to Pandas.")
+                print(f"[{context}] Polars Dataset too large ({len(df)} rows). Sampling {limit} rows for safely converting to Pandas.", file=sys.stderr)
                 return df.sample(n=limit, with_replacement=False, seed=42).to_pandas()
             return df.to_pandas()
 
@@ -469,7 +470,7 @@ class SessionManager:
         if not texts:
             return "No text data found to scan."
 
-        print(f"Scanning {len(texts)} items in '{text_column}'...")
+        print(f"Scanning {len(texts)} items in '{text_column}'...", file=sys.stderr)
         if ctx:
             ctx.info(f"Scanning {len(texts)} items... (This may take a moment)")
 

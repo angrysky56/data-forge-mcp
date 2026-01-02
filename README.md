@@ -92,7 +92,13 @@ To use Data-Forge with your MCP Client (e.g., Claude Desktop), add the following
         "run",
         "-m",
         "src.server"
-      ]
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1",
+        "LOG_LEVEL": "WARNING",
+        "NUMBA_DISABLE_CUDA": "1",
+        "NUMBA_ENABLE_CUDASIM": "1"
+      }
     }
   }
 }
