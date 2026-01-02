@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import umap
 from ripser import ripser
 from persim import plot_diagrams
@@ -29,7 +30,8 @@ class VoidScanner:
              titles: Optional[List[str]] = None,
              output_dir: str = "outputs",
              max_points: int = 1000,
-             persistence_threshold: float = 0.1) -> Dict[str, Any]:
+             persistence_threshold: float = 0.1,
+             ctx: Optional[Any] = None) -> Dict[str, Any]:
         """
         Performs the void scan pipeline: Embed -> UMAP -> TDA -> Report.
 
@@ -50,27 +52,33 @@ class VoidScanner:
             print(f"Dataset too large for TDA ({n_samples} > {max_points}). Sampling...")
             indices = np.random.choice(n_samples, max_points, replace=False)
             corpus = [texts[i] for i in indices]
-            if titles:
+            if titles is not None and len(titles) > 0:
                 corpus_titles = [titles[i] for i in indices]
             else:
                 corpus_titles = [f"Item {i}" for i in indices]
         else:
             corpus = texts
-            corpus_titles = titles if titles else [f"Item {i}" for i in range(n_samples)]
+            corpus_titles = list(titles) if titles is not None and len(titles) > 0 else [f"Item {i}" for i in range(n_samples)]
 
         # 2. Embedding (The Map)
         print("Embedding corpus...")
+        if ctx:
+            ctx.info("Generating embeddings (SentenceTransformer)...")
         embeddings = self.model.encode(corpus)
 
         # 3. Manifold Projection (UMAP)
         # Reduce to 3D for checking structure and TDA processing
         print("Projecting Manifold (UMAP)...")
+        if ctx:
+            ctx.info("Projecting Manifold (UMAP) to 3D...")
         # n_jobs=1 to suppress warnings and ensure stability
         reducer = umap.UMAP(n_components=3, random_state=42, n_jobs=1)
         input_data = reducer.fit_transform(embeddings) # (N, 3) point cloud
 
         # 4. TDA (The Scan)
         print("Computing Persistent Homology...")
+        if ctx:
+            ctx.info("Computing Persistent Homology (Vietoris-Rips Filtration)...")
         # maxdim=1 computes H0 (clusters) and H1 (loops/voids)
         result = ripser(input_data, maxdim=1)
         diagrams = result['dgms']
@@ -92,7 +100,7 @@ class VoidScanner:
 
         # Subplot 2: Manifold
         ax = plt.subplot(1, 2, 2, projection='3d')
-        ax.scatter(input_data[:, 0], input_data[:, 1], input_data[:, 2],
+        ax.scatter(input_data[:, 0], input_data[:, 1], zs=input_data[:, 2],
                    s=20, c='cyan', edgecolors='k', alpha=0.7)
         ax.set_title("Semantic Manifold (3D projection)")
 
@@ -101,7 +109,7 @@ class VoidScanner:
         plt.close()
 
         # 6. Interpretation
-        report = {
+        report: Dict[str, Any] = {
             "image_path": filepath,
             "n_samples": len(corpus),
             "void_detected": False,
@@ -129,6 +137,9 @@ class VoidScanner:
             center = kmeans.cluster_centers_[i]
             dists = np.linalg.norm(input_data - center, axis=1)
             idx = np.argmin(dists)
+            if not isinstance(report["landmarks"], list):
+                # Defensive recovery if landmarks became a non-list somehow
+                report["landmarks"] = list(report["landmarks"]) if hasattr(report["landmarks"], "__iter__") else []
             report["landmarks"].append(corpus_titles[idx])
 
         return report

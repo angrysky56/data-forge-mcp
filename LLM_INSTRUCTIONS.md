@@ -45,6 +45,7 @@ Follow this pipeline for every new data task:
 
 - **Semantic Voids**: `scan_semantic_voids`.
   - Use when asked "What's missing?" or "Find gaps".
+  - **Status Updates**: This tool logs progress via MCP Context (Embedding -> UMAP -> TDA). You can inform the user of these stages.
   - Returns a persistence barcode and landmark papers.
 
 ### 8. Headless Control (The God Mode)

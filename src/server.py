@@ -1,4 +1,4 @@
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP, Context
 from src.session_manager import SessionManager
 from typing import Literal, Optional, Dict, List, Any, Union
 import json
@@ -146,13 +146,13 @@ def generate_chart(dataset_id: str,
         return f"Error generating chart: {str(e)}"
 
 @mcp.tool()
-def scan_semantic_voids(dataset_id: str, text_column: str) -> str:
+def scan_semantic_voids(dataset_id: str, text_column: str, ctx: Optional[Context] = None) -> str:
     """
     Performs Topological Data Analysis to find "semantic voids" or gaps in the dataset's text column.
     Useful for identifying missing research topics, unaddressed customer complaints, or concept holes.
     Generates a persistence barcode and 3D manifold plot.
     """
-    return session_manager.scan_voids(dataset_id, text_column)
+    return session_manager.scan_voids(dataset_id, text_column, ctx)
 
 @mcp.tool()
 def run_sql_query(query: str, dataset_id: Optional[str] = None) -> str:

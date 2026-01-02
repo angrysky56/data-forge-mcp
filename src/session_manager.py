@@ -447,10 +447,12 @@ class SessionManager:
 
         except Exception as e:
             raise RuntimeError(f"Map generation failed: {str(e)}")
-    def scan_voids(self, dataset_id: str, text_column: str) -> str:
+    def scan_voids(self, dataset_id: str, text_column: str, ctx: Any = None) -> str:
         """
         Scans a text column for semantic voids using Topological Data Analysis.
         """
+        if ctx:
+            ctx.info(f"Initiating Void Scan on '{dataset_id}' column '{text_column}'...")
         df = self.get_dataset(dataset_id)
 
         # Standardize to List[str]
@@ -468,7 +470,10 @@ class SessionManager:
             return "No text data found to scan."
 
         print(f"Scanning {len(texts)} items in '{text_column}'...")
-        report = self.scanner.scan(texts, output_dir=self._outputs_dir)
+        if ctx:
+            ctx.info(f"Scanning {len(texts)} items... (This may take a moment)")
+
+        report = self.scanner.scan(texts, output_dir=self._outputs_dir, ctx=ctx)
 
         # Format the output for the user
         status = "DETECTED" if report["void_detected"] else "NOT DETECTED"
