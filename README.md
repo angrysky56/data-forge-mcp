@@ -37,6 +37,10 @@
 - **`generate_map`**: Create geospatial plots from lat/lon data (GeoPandas).
 - **`start_explorer`**: Launch an interactive **D-Tale** dashboard for deep data exploration in your browser.
 
+### 8. Discovery (Probes)
+
+- **`scan_semantic_voids`**: Use Topological Data Analysis (TDA) to find "holes" or missing concepts in text datasets.
+
 ---
 
 ## 🛠️ Installation

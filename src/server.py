@@ -134,6 +134,15 @@ def generate_chart(dataset_id: str,
         return f"Error generating chart: {str(e)}"
 
 @mcp.tool()
+def scan_semantic_voids(dataset_id: str, text_column: str) -> str:
+    """
+    Performs Topological Data Analysis to find "semantic voids" or gaps in the dataset's text column.
+    Useful for identifying missing research topics, unaddressed customer complaints, or concept holes.
+    Generates a persistence barcode and 3D manifold plot.
+    """
+    return session_manager.scan_voids(dataset_id, text_column)
+
+@mcp.tool()
 def extract_signals(dataset_id: str, value_column: str, id_column: Optional[str] = None, sort_column: Optional[str] = None) -> str:
     """
     Extracts time-series signals (features) using tsfresh.

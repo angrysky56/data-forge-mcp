@@ -2,9 +2,16 @@ import uuid
 import os
 import time
 import json
+from datetime import datetime
+from src.discovery import VoidScanner
 from typing import Dict, Any, List, Optional, Union
 import pandas as pd
-import polars as pl
+
+# Optional dependencies
+try:
+    import polars as pl
+except ImportError:
+    pl = None  # type: ignore
 import pandera as pa
 import janitor  # noqa: F401
 from ydata_profiling import ProfileReport
@@ -16,14 +23,19 @@ class SessionManager:
     """
     Manages the lifecycle of loaded DataFrames in memory.
     """
-    def __init__(self):
+    def __init__(self) -> None:
         # In-memory registry for datasets: {dataset_id: DataFrame}
-        self._registry: Dict[str, Union[pd.DataFrame, pl.DataFrame]] = {}
+        self._registry: Dict[str, Union[pd.DataFrame, Any]] = {}
         # Metadata storage: {dataset_id: {info...}}
         self._metadata: Dict[str, Any] = {}
         # Outputs directory
         self._outputs_dir = os.path.join(os.getcwd(), "outputs")
-        os.makedirs(self._outputs_dir, exist_ok=True)
+        if not os.path.exists(self._outputs_dir):
+            os.makedirs(self._outputs_dir)
+
+        # Initialize sub-systems lazily or on demand?
+        # For now, just keep a reference to be initialized when used to save startup time
+        self.scanner = VoidScanner()
 
     def extract_signals(self, dataset_id: str, value_column: str, id_column: Optional[str] = None, sort_column: Optional[str] = None) -> Union[str, Dict[str, Any]]:
         """
@@ -36,7 +48,7 @@ class SessionManager:
         """
         df = self.get_dataset(dataset_id)
 
-        if isinstance(df, pl.DataFrame):
+        if pl is not None and isinstance(df, pl.DataFrame):
             # tsfresh works with pandas
             # Converting potentially large polars DF to pandas might be a bottleneck,
             # but tsfresh is CPU intensive anyway.
@@ -173,7 +185,7 @@ class SessionManager:
             buffer = io.StringIO()
             df.info(buf=buffer)
             return buffer.getvalue()
-        elif isinstance(df, pl.DataFrame):
+        elif pl is not None and isinstance(df, pl.DataFrame):
             return str(df)
         return "Unknown DataFrame type."
 
@@ -186,7 +198,7 @@ class SessionManager:
 
         # Temporary: convert Polars to Pandas for validation if manageable size
         # TODO: Implement native Polars validation when Pandera support matures or use simple Polars checks
-        if isinstance(df, pl.DataFrame):
+        if pl is not None and isinstance(df, pl.DataFrame):
             # Warning: this might be expensive
             df = df.to_pandas()
 
@@ -217,7 +229,7 @@ class SessionManager:
         """
         df = self.get_dataset(dataset_id)
 
-        if isinstance(df, pl.DataFrame):
+        if pl is not None and isinstance(df, pl.DataFrame):
             return "Cleaning not yet fully implemented for Polars engine."
 
         for op in operations:
@@ -271,7 +283,7 @@ class SessionManager:
         df = self.get_dataset(dataset_id)
 
         # YData Profiling works best with Pandas
-        if isinstance(df, pl.DataFrame):
+        if pl is not None and isinstance(df, pl.DataFrame):
             # For MVP, convert to pandas. In production, we'd want to sample large datasets or use native stats.
             df = df.to_pandas()
 
@@ -376,7 +388,7 @@ class SessionManager:
             from shapely.geometry import Point
 
             df = self.get_dataset(dataset_id)
-            if isinstance(df, pl.DataFrame):
+            if pl is not None and isinstance(df, pl.DataFrame):
                 df = df.to_pandas()
 
             if lat_col not in df.columns or lon_col not in df.columns:
@@ -415,7 +427,39 @@ class SessionManager:
 
         except Exception as e:
             raise RuntimeError(f"Map generation failed: {str(e)}")
+    def scan_voids(self, dataset_id: str, text_column: str) -> str:
+        """
+        Scans a text column for semantic voids using Topological Data Analysis.
+        """
+        df = self.get_dataset(dataset_id)
 
+        # Standardize to List[str]
+        texts = []
+        if isinstance(df, pd.DataFrame):
+            if text_column not in df.columns:
+                raise ValueError(f"Column '{text_column}' not found.")
+            texts = df[text_column].astype(str).tolist()
+        elif pl is not None and isinstance(df, pl.DataFrame):
+             if text_column not in df.columns:
+                raise ValueError(f"Column '{text_column}' not found.")
+             texts = df[text_column].cast(pl.Utf8).to_list()
+
+        if not texts:
+            return "No text data found to scan."
+
+        print(f"Scanning {len(texts)} items in '{text_column}'...")
+        report = self.scanner.scan(texts, output_dir=self._outputs_dir)
+
+        # Format the output for the user
+        status = "DETECTED" if report["void_detected"] else "NOT DETECTED"
+        msg = "Scan Complete.\n"
+        msg += f"Void Status: {status} (Max Persistence: {report['max_persistence']:.4f})\n"
+        msg += f"Visualization: {report['image_path']}\n"
+        msg += "Semantic Landmarks:\n"
+        for i, lm in enumerate(report["landmarks"]):
+            msg += f"  - Cluster {i}: {lm[:100]}...\n" # Truncate long texts
+
+        return msg
     def start_explorer(self, dataset_id: str) -> str:
         """
         Starts a D-Tale instance for the given dataset and returns the URL.
@@ -424,7 +468,7 @@ class SessionManager:
             import dtale
 
             df = self.get_dataset(dataset_id)
-            if isinstance(df, pl.DataFrame):
+            if pl is not None and isinstance(df, pl.DataFrame):
                 df = df.to_pandas()
 
             # D-Tale manages its own global state.
@@ -444,7 +488,7 @@ class SessionManager:
         """
         df = self.get_dataset(dataset_id)
 
-        if isinstance(df, pl.DataFrame):
+        if pl is not None and isinstance(df, pl.DataFrame):
             # Convert to pandas for plotting
             df = df.to_pandas()
 
