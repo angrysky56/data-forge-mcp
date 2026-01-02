@@ -375,7 +375,8 @@ class SessionManager:
             base_id = f"web_{uuid.uuid4().hex[:4]}"
 
             for i, df in enumerate(dfs):
-                if df.empty: continue
+                if df.empty:
+                     continue
 
                 table_id = f"{base_id}_t{i}"
                 self._registry[table_id] = df
