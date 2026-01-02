@@ -59,7 +59,7 @@
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/your-username/data-forge-mcp.git
+   git clone https://github.com/angrysky56/data-forge-mcp.git
    cd data-forge-mcp
    ```
 
@@ -69,7 +69,7 @@
    uv sync
    ```
 
-3. Configure Environment (Optional):
+3. Configure Environment if not set in path (Optional):
    Create a `.env` file if you need to access private Hugging Face datasets:
    ```bash
    HF_TOKEN=your_hugging_face_token
