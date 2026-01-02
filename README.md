@@ -41,6 +41,10 @@
 
 - **`scan_semantic_voids`**: Use Topological Data Analysis (TDA) to find "holes" or missing concepts in text datasets.
 
+### 9. Headless Control (DuckDB)
+
+- **`run_sql_query`**: "God Mode" for the agent. Execute complex SQL (Joins, Aggregates, Filters) across all loaded datasets using an in-memory DuckDB engine.
+
 ---
 
 ## 🛠️ Installation

@@ -14,6 +14,7 @@ except ImportError:
     pl = None  # type: ignore
 import pandera as pa
 import janitor  # noqa: F401
+import duckdb
 from ydata_profiling import ProfileReport
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -552,3 +553,46 @@ class SessionManager:
         plt.close()
 
         return path
+
+    def query_data(self, query: str, dataset_id: Optional[str] = None) -> Union[str, Dict[str, Any]]:
+        """
+        Executes a SQL query on the loaded datasets using DuckDB.
+        """
+        try:
+            # 1. Setup DuckDB connection
+            # duckdb.connect() creates an in-memory database
+            con = duckdb.connect(database=':memory:')
+
+            # 2. Register all active datasets as virtual tables
+            for ds_id, df in self._registry.items():
+                try:
+                    # Polars/Pandas are both supported by DuckDB
+                    # However, for Polars, we might need to be careful with versions.
+                    # DuckDB python client handles pandas natively.
+                    con.register(ds_id, df)
+                except Exception:
+                    pass # Skip non-compatible objects
+
+            # 3. Handle 'this' alias if dataset_id provided
+            if dataset_id and dataset_id in self._registry:
+                con.register('this', self._registry[dataset_id])
+
+            # 4. Execute Query
+            # We limit to 50 rows to prevent context flooding if user forgets limit
+            # But we should rely on the user's query mainly.
+            # Let's run it and then head() the result dataframe.
+            result_df = con.execute(query).df()
+
+            row_count = len(result_df)
+            # Preview top 20 rows as markdown
+            preview = result_df.head(20).to_markdown(index=False)
+
+            return {
+                "status": "success",
+                "rows_returned": row_count,
+                "preview": preview,
+                "note": "Query executed. Top 20 rows shown."
+            }
+
+        except Exception as e:
+            return f"SQL Error: {str(e)}"

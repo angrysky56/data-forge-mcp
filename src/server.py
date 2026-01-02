@@ -143,6 +143,20 @@ def scan_semantic_voids(dataset_id: str, text_column: str) -> str:
     return session_manager.scan_voids(dataset_id, text_column)
 
 @mcp.tool()
+def run_sql_query(query: str, dataset_id: Optional[str] = None) -> str:
+    """
+    Executes a SQL query on your datasets using DuckDB.
+    Use this to filter, aggregate, join, or reshape data.
+
+    You can reference datasets by their ID (e.g., 'SELECT * FROM df_a1b2').
+    If you provide a 'dataset_id' argument, you can refer to it as table 'this'.
+    """
+    result = session_manager.query_data(query, dataset_id)
+    if isinstance(result, dict):
+        return f"Query Result ({result['rows_returned']} rows):\n{result['preview']}"
+    return str(result)
+
+@mcp.tool()
 def extract_signals(dataset_id: str, value_column: str, id_column: Optional[str] = None, sort_column: Optional[str] = None) -> str:
     """
     Extracts time-series signals (features) using tsfresh.
